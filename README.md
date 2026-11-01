@@ -1,17 +1,23 @@
 # Mentorship Program
 
-ServiceNow scoped application to manage mentorship sessions between mentors and mentees, built with App Engine Studio and Flow Designer.
+ServiceNow scoped application to manage mentorship sessions between mentors and mentees. Built with App Engine Studio, Flow Designer and Service Catalog, with a self-service entry point in the Employee Center.
 
-Aplicativo escopado do ServiceNow para acompanhar sessões de mentoria entre mentores e mentorados. Desenvolvido como atividade do Bootcamp Shark Academy (ServiceNow).
+Aplicativo escopado do ServiceNow para acompanhar sessões de mentoria entre mentores e mentorados. Desenvolvido como atividades do Bootcamp Shark Academy (ServiceNow).
 
 ## Visão geral
 
-O app permite cadastrar mentores, registrar sessões de mentoria e automatizar o ciclo de aprovação da sessão por meio de um fluxo no Flow Designer.
+O app permite cadastrar mentores, registrar sessões de mentoria, automatizar o ciclo de aprovação da sessão e solicitar uma nova sessão pelo portal Employee Center, por meio de um formulário de catálogo simplificado.
+
+| Atividade | Conteúdo |
+|---|---|
+| 1 | Aplicação escopada, tabelas, auto-number, layouts, State, menu de navegação |
+| 3 | Flow Designer: aprovação, atualização de State e contador do mentor |
+| 4 | Catálogo de serviços e portal: Record Producer e Menu Item no Employee Center |
 
 ## Tabelas
 
 ### Mentor
-Criada do zero (não estende outra tabela), com auto-number.
+Criada do zero (não estende outra tabela), com auto-number (prefixo `MENTOR`).
 
 | Campo | Tipo | Observação |
 |---|---|---|
@@ -22,7 +28,7 @@ Criada do zero (não estende outra tabela), com auto-number.
 | Concluded Sessions | Integer | Valor padrão 0 |
 
 ### Mentorship Session
-Estende a tabela **Task** (herda campos como Number, State, Short description, Work notes), com auto-number. Campos exclusivos:
+Estende a tabela **Task** (herda campos como Number, State, Short description, Description e Work notes), com auto-number (prefixo `MN`). Campos exclusivos:
 
 | Campo | Tipo | Observação |
 |---|---|---|
@@ -33,7 +39,7 @@ Estende a tabela **Task** (herda campos como Number, State, Short description, W
 ### Campo State (Dictionary Override)
 Opções: **Draft**, **Awaiting approval**, **Accepted**, **Rejected/Canceled** e **Done**. As opções padrão herdadas da Task foram desativadas e o valor padrão é **Draft**, configurado por Dictionary Override.
 
-## Navegação
+## Navegação (plataforma)
 
 Application menu **Mentorship Program**, com os grupos **Mentorship Session** e **Mentor**, cada um com os módulos **Create New** e **List**.
 
@@ -47,17 +53,37 @@ Executa como **System User** e é disparado quando uma sessão é criada.
    1. State passa para **Accepted**.
    2. Aguarda o preenchimento de **Session Feedback** (Wait For Condition).
    3. State passa para **Done**.
-   4. Soma 1 em **Concluded Sessions** do mentor responsável, usando um script.
+   4. Soma 1 em **Concluded Sessions** do mentor responsável, usando um script com `fd_data` e `GlideRecord`.
 4. **Se rejeitado:** State passa para **Rejected/Canceled** e o fluxo termina.
+
+## Catálogo e portal (Atividade 4)
+
+### Record Producer: Mentorship Session
+Formulário de catálogo que cria registros na tabela **Mentorship Session**. Não está atribuído a nenhum catálogo ou categoria.
+
+| Pergunta | Tipo | Obrigatória | Mapeada para |
+|---|---|---|---|
+| What's your session subject? | Single Line Text | Sim | Short description |
+| Describe your needs for this session | Multi Line Text | Não | Description |
+| When would you like to schedule your session? | Date/Time | Sim | Session Date |
+| Choose your mentor | Reference (Mentor) | Sim | Mentor's Name |
+
+- A pergunta **Choose your mentor** usa um reference qualifier (**Available is true**) e lista apenas mentores disponíveis.
+- O acesso é limitado por **User Criteria** (*Mentorship Program Users*), que reúne os grupos **Mentorship Program – Mentores** e **Mentorship Program – Mentorados**. Usuários fora desses grupos recebem a mensagem de falta de autorização.
+
+### Menu Item no Employee Center
+Item **New Mentorship Session**, do tipo **Catalog Item** (página `sc_cat_item`), ligado ao menu **More** do **Employee Center Menu**. Ao enviar o formulário, a sessão é criada, o State passa de **Draft** para **Awaiting approval** e o fluxo é disparado.
 
 ## Recursos utilizados
 
 - App Engine Studio e Studio
 - Tabela estendida (Task) e tabela criada do zero
-- Auto-number
-- Dictionary Override
+- Auto-number e Dictionary Override
 - Application menu e modules
-- Flow Designer (Ask For Approval, If/Else, Wait For Condition, Update Record, script com `fd_data`)
+- Flow Designer (Ask For Approval, If/Else, Wait For Condition, Update Record, script)
+- Service Catalog: Record Producer, variáveis com map to field, reference qualifier
+- User Criteria e grupos para controle de acesso
+- Menu Item do Employee Center (Service Portal)
 
 ## Como importar o app
 
@@ -73,3 +99,6 @@ O arquivo XML deste repositório é um update set exportado da instância.
 - Em campos de referência, o `fd_data` pode devolver apenas o identificador do registro. Para ler outros campos do registro referenciado, a consulta com `GlideRecord` pelo sys_id é mais segura.
 - Em apps escopados, as colunas criadas não recebem o prefixo `u_`.
 - O Flow Designer só aplica alterações depois de salvar e ativar o fluxo novamente.
+- No Employee Center, itens aninhados em um menu como **More** se ligam pelo campo **Parent Menu Item**, e não pelo **Parent Menu**.
+- Lista de menu sem a coluna **Label** esconde os nomes dos itens. Personalizar a lista resolve.
+- A restrição de acesso do catálogo funciona nos dois sentidos: com o usuário no grupo o formulário abre, e sem o grupo o portal nega o acesso.
